@@ -745,7 +745,7 @@ function matchGroups(people) {
 }
 
 // ── Power Automate HTTP Trigger URL ─────────────────────────────────────────
-const POWER_AUTOMATE_URL = 'https://default482198bbae7b4b258b7a6d7f32faa0.83.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f9d5ae3547704f1e820a74778c97f316/triggers/manual/paths/invoke?api-version=1';
+const POWER_AUTOMATE_URL = 'https://default482198bbae7b4b258b7a6d7f32faa0.83.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f9d5ae3547704f1e820a74778c97f316/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=dpfguUjXcWFJDAPwHE-Osrc9f6CnKBfPmTzmSsFcD5A';
 // ────────────────────────────────────────────────────────────────────────────
 
 function submitForm() {
@@ -771,7 +771,6 @@ function submitForm() {
     'Work From Home': getVal('wfh'),
     'Hobbies At Home': getVal('hobbies'),
     'Additional Notes': document.getElementById('notes').value.trim(),
-    // Internal scoring keys (used locally for Excel download only)
     _bed: getVal('bedtime') === 'By 10PM' ? 1 : getVal('bedtime') === '10PM to 12AM' ? 2 : getVal('bedtime') === 'After 12AM' ? 3 : 2,
     _wake: getVal('wakeup') === 'By 7AM' ? 1 : getVal('wakeup') === '7AM to 8AM' ? 2 : getVal('wakeup') === 'After 8AM' ? 3 : 2,
     _noise: getNum('noise'), _clean: getNum('clean'), _apt: getNum('apt'),
@@ -783,7 +782,6 @@ function submitForm() {
   const originalBtnText = submitBtn ? submitBtn.textContent : '';
   if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting…'; }
 
-  // Strip _ keys before sending to Power Automate
   const payload = {};
   for (const [k, v] of Object.entries(row)) {
     if (!k.startsWith('_')) payload[k] = v;
@@ -791,8 +789,7 @@ function submitForm() {
 
   fetch(POWER_AUTOMATE_URL, {
     method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
   .then(() => {
