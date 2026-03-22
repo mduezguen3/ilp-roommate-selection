@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intern Lodging Roommate Selection — Georgia Tech Conference Services</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #003057;
+  --navy-mid: #003f72;
+  --navy-light: #0a4a8a;
+  --gold: #B3A369;
+  --gold-bright: #D4AF37;
+  --gold-pale: #e8dfa8;
+  --gold-soft: #f2ecc8;
+  --white: #ffffff;
+  --off-white: #F8F6F0;
+  --light-gray: #eef0f4;
+  --mid-gray: #8a93a3;
+  --text-dark: #1a2a3a;
+  --text-mid: #4a5a6a;
+  --shadow: rgba(0,48,87,0.12);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--off-white);
+  font-family: 'Outfit', sans-serif;
+  color: var(--text-dark);
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse at 0% 0%, rgba(0,48,87,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse at 100% 100%, rgba(179,163,105,0.06) 0%, transparent 60%);
+}
+.progress-wrap {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 3px; background: rgba(0,48,87,0.12); z-index: 200;
+}
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--gold-bright));
+  transition: width 0.6s cubic-bezier(.4,0,.2,1);
+  box-shadow: 0 0 8px rgba(212,175,55,0.5);
+}
+.header {
+  background: var(--navy);
+  position: relative; overflow: hidden; padding: 0;
+}
+.header-bg-pattern {
+  position: absolute; inset: 0;
+  background-image:
+    repeating-linear-gradient(45deg,transparent,transparent 40px,rgba(179,163,105,0.04) 40px,rgba(179,163,105,0.04) 41px),
+    repeating-linear-gradient(-45deg,transparent,transparent 40px,rgba(179,163,105,0.03) 40px,rgba(179,163,105,0.03) 41px);
+}
+.header-glow {
+  position: absolute; top: -80px; left: 50%; transform: translateX(-50%);
+  width: 600px; height: 300px;
+  background: radial-gradient(ellipse, rgba(179,163,105,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.header-inner {
+  position: relative; max-width: 800px; margin: 0 auto;
+  padding: 52px 32px 48px; text-align: center;
+}
+.gt-badge {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: rgba(179,163,105,0.15);
+  border: 1px solid rgba(179,163,105,0.3);
+  border-radius: 4px; padding: 7px 16px; margin-bottom: 24px;
+  animation: fadeDown 0.5s ease both;
+}
+.gt-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+.gt-badge span { font-size: 0.68rem; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase; color: var(--gold); }
+.header h1 {
+  font-family: 'EB Garamond', serif;
+  font-size: clamp(1.9rem, 4.5vw, 3rem);
+  font-weight: 700; color: var(--white); line-height: 1.15;
+  margin-bottom: 6px; animation: fadeDown 0.6s ease 0.1s both;
+}
+.header h1 em { font-style: normal; color: var(--gold); }
+.header-sub {
+  font-size: 0.82rem; font-weight: 500; letter-spacing: 2px; text-transform: uppercase;
+  color: rgba(255,255,255,0.45); margin-bottom: 20px;
+  animation: fadeDown 0.6s ease 0.15s both;
+}
+.header p {
+  color: rgba(255,255,255,0.65); font-size: 0.97rem; font-weight: 300;
+  max-width: 500px; margin: 0 auto 32px; line-height: 1.6;
+  animation: fadeDown 0.6s ease 0.2s both;
+}
+.steps-row {
+  display: flex; justify-content: center; align-items: center; gap: 0;
+  animation: fadeDown 0.6s ease 0.25s both;
+}
+.step-node {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.35);
+  transition: all 0.4s; background: transparent;
+}
+.step-node.active { border-color: var(--gold); background: var(--gold); color: var(--navy); }
+.step-node.done { border-color: rgba(179,163,105,0.6); background: rgba(179,163,105,0.15); color: var(--gold); }
+.step-line { width: 48px; height: 1px; background: rgba(255,255,255,0.15); transition: background 0.4s; }
+.step-line.done { background: rgba(179,163,105,0.5); }
+@keyframes fadeDown { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:translateY(0); } }
+.container { max-width: 740px; margin: 0 auto; padding: 48px 24px 80px; }
+.section { display: none; }
+.section.active { display: block; animation: fadeUp 0.45s ease both; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+.section-eyebrow { font-size: 0.65rem; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--gold-bright); margin-bottom: 8px; }
+.section-title { font-family: 'EB Garamond', serif; font-size: clamp(1.55rem, 3vw, 2.1rem); font-weight: 700; color: var(--navy); margin-bottom: 6px; line-height: 1.2; }
+.section-desc { color: var(--text-mid); font-size: 0.9rem; font-weight: 300; margin-bottom: 38px; line-height: 1.6; }
+.card {
+  background: var(--white); border-radius: 12px;
+  box-shadow: 0 2px 12px var(--shadow); padding: 28px 28px 24px; margin-bottom: 20px;
+  border: 1px solid rgba(0,48,87,0.06); transition: box-shadow 0.2s;
+}
+.card:hover { box-shadow: 0 4px 20px rgba(0,48,87,0.1); }
+.q-label {
+  font-size: 0.92rem; font-weight: 500; color: var(--text-dark);
+  margin-bottom: 16px; line-height: 1.5; display: flex; align-items: flex-start; gap: 10px;
+}
+.q-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; background: var(--navy); color: var(--gold);
+  border-radius: 4px; font-size: 0.62rem; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+}
+.req { color: #c0392b; margin-left: 2px; font-size: 0.8rem; }
+.options-grid { display: grid; gap: 8px; }
+.options-grid.two-col { grid-template-columns: 1fr 1fr; }
+.options-grid.three-col { grid-template-columns: repeat(3, 1fr); }
+.opt { position: relative; }
+.opt input { position: absolute; opacity: 0; width: 0; height: 0; }
+.opt label {
+  display: flex; align-items: center; gap: 11px;
+  padding: 12px 16px; background: var(--light-gray);
+  border: 1.5px solid transparent; border-radius: 8px; cursor: pointer;
+  font-size: 0.88rem; color: var(--text-dark); transition: all 0.18s; font-weight: 400; line-height: 1.4;
+}
+.opt label:hover { background: var(--gold-soft); border-color: var(--gold); }
+.opt input:checked + label { background: rgba(0,48,87,0.05); border-color: var(--navy); color: var(--navy); font-weight: 500; }
+.opt-radio {
+  width: 15px; height: 15px; border-radius: 50%; border: 2px solid #c8cdd4;
+  flex-shrink: 0; transition: all 0.18s; background: white;
+}
+.opt input:checked + label .opt-radio { background: var(--navy); border-color: var(--navy); box-shadow: inset 0 0 0 3px white; }
+.scale-row { display: flex; gap: 6px; }
+.scale-opt { flex: 1; position: relative; }
+.scale-opt input { position: absolute; opacity: 0; width: 0; height: 0; }
+.scale-opt label {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 12px 4px 10px; background: var(--light-gray);
+  border: 1.5px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.18s;
+}
+.scale-opt label:hover { background: var(--gold-soft); border-color: var(--gold); }
+.scale-opt input:checked + label { background: rgba(0,48,87,0.06); border-color: var(--navy); }
+.scale-n { font-family: 'EB Garamond', serif; font-size: 1.25rem; font-weight: 700; color: var(--navy-mid); line-height: 1; }
+.scale-opt input:checked + label .scale-n { color: var(--navy); }
+.scale-t { font-size: 0.58rem; color: var(--mid-gray); text-align: center; line-height: 1.2; font-weight: 400; }
+.scale-ends { display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.68rem; color: var(--mid-gray); padding: 0 2px; }
+.drag-intro {
+  font-size: 0.82rem; color: var(--text-mid); margin-bottom: 16px;
+  background: rgba(0,48,87,0.04); border-left: 3px solid var(--gold);
+  padding: 10px 14px; border-radius: 0 6px 6px 0; line-height: 1.5;
+}
+.drag-layout { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.drag-col {
+  background: var(--light-gray); border-radius: 10px; padding: 14px 12px;
+  min-height: 180px; border: 1.5px solid transparent; transition: all 0.2s;
+}
+.drag-col.drag-over-active { border-color: var(--gold); background: var(--gold-soft); }
+.drag-col-head {
+  font-size: 0.68rem; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase;
+  color: var(--text-mid); margin-bottom: 10px; padding-bottom: 8px;
+  border-bottom: 1.5px solid rgba(0,48,87,0.1); line-height: 1.3;
+}
+.drag-col.col-top .drag-col-head { color: var(--navy); }
+.drag-col.col-bottom .drag-col-head { color: #888; }
+.drag-item {
+  padding: 9px 11px; background: var(--white); border-radius: 6px; margin-bottom: 7px;
+  font-size: 0.82rem; cursor: grab; border: 1px solid rgba(0,48,87,0.08);
+  transition: all 0.15s; user-select: none; color: var(--text-dark); line-height: 1.3;
+  box-shadow: 0 1px 3px rgba(0,48,87,0.05);
+}
+.drag-item:hover { border-color: var(--gold); box-shadow: 0 2px 8px rgba(0,48,87,0.1); }
+.drag-item:active { cursor: grabbing; opacity: 0.6; transform: scale(0.97); }
+.drag-item.dragging { opacity: 0.35; }
+.text-input {
+  width: 100%; padding: 13px 16px; background: var(--light-gray);
+  border: 1.5px solid transparent; border-radius: 8px;
+  font-family: 'Outfit', sans-serif; font-size: 0.92rem; color: var(--text-dark); transition: all 0.18s;
+}
+.text-input:focus { outline: none; border-color: var(--navy); background: white; box-shadow: 0 0 0 3px rgba(0,48,87,0.08); }
+textarea.text-input { resize: vertical; min-height: 110px; }
+.nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 40px; gap: 12px; }
+.btn {
+  padding: 13px 30px; border-radius: 6px; border: none; cursor: pointer;
+  font-family: 'Outfit', sans-serif; font-size: 0.88rem; font-weight: 600;
+  transition: all 0.22s; letter-spacing: 0.3px;
+}
+.btn-primary { background: var(--navy); color: var(--gold); box-shadow: 0 4px 14px rgba(0,48,87,0.25); }
+.btn-primary:hover { background: var(--navy-light); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,48,87,0.3); }
+.btn-secondary { background: transparent; color: var(--text-mid); border: 1.5px solid #d0d5de; }
+.btn-secondary:hover { border-color: var(--navy); color: var(--navy); }
+.btn-gold { background: var(--gold-bright); color: var(--navy); box-shadow: 0 4px 14px rgba(212,175,55,0.3); }
+.btn-gold:hover { background: var(--gold); transform: translateY(-2px); }
+.page-ind { font-size: 0.78rem; color: var(--mid-gray); font-weight: 500; }
+.divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(0,48,87,0.1), transparent); margin: 28px 0; }
+.success-screen { display: none; text-align: center; padding: 56px 20px 40px; animation: fadeUp 0.5s ease both; }
+.success-mark {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--navy), var(--navy-light));
+  border: 3px solid var(--gold); display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 24px; font-size: 1.7rem; color: var(--gold);
+  box-shadow: 0 8px 24px rgba(0,48,87,0.25);
+}
+.success-screen h2 { font-family: 'EB Garamond', serif; font-size: 2rem; color: var(--navy); margin-bottom: 10px; }
+.success-screen p { color: var(--text-mid); margin-bottom: 28px; max-width: 420px; margin-left: auto; margin-right: auto; font-size: 0.92rem; line-height: 1.6; }
+.stat-box {
+  display: inline-block; background: var(--white);
+  border: 1.5px solid rgba(0,48,87,0.1); border-radius: 10px;
+  padding: 18px 32px; margin-bottom: 28px; box-shadow: 0 2px 10px var(--shadow);
+}
+.stat-box strong { display: block; font-family: 'EB Garamond', serif; font-size: 2.8rem; color: var(--navy); line-height: 1; }
+.stat-box span { font-size: 0.78rem; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: var(--mid-gray); }
+.btn-row { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.admin-toggle { text-align: center; margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(0,48,87,0.08); }
+.admin-toggle button {
+  background: transparent; border: 1.5px solid rgba(0,48,87,0.15);
+  color: var(--text-mid); font-family: 'Outfit', sans-serif;
+  font-size: 0.78rem; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 9px 20px; border-radius: 4px; cursor: pointer; transition: all 0.2s;
+}
+.admin-toggle button:hover { border-color: var(--navy); color: var(--navy); }
+.admin-panel {
+  display: none; background: var(--white); border-radius: 12px;
+  border: 1.5px solid rgba(0,48,87,0.1); box-shadow: 0 4px 20px var(--shadow);
+  margin-top: 20px; overflow: hidden;
+}
+.admin-head {
+  background: var(--navy); padding: 18px 24px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.admin-head h3 { font-family: 'EB Garamond', serif; font-size: 1.15rem; color: var(--white); font-weight: 600; }
+.admin-head span { font-size: 0.75rem; color: var(--gold); letter-spacing: 1px; }
+.admin-table-wrap { overflow-x: auto; }
+.admin-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.admin-table th {
+  background: rgba(0,48,87,0.05); color: var(--navy); font-weight: 600;
+  letter-spacing: 0.5px; padding: 11px 14px; text-align: left;
+  border-bottom: 2px solid rgba(0,48,87,0.1); white-space: nowrap;
+}
+.admin-table td {
+  padding: 10px 14px; border-bottom: 1px solid rgba(0,48,87,0.05);
+  color: var(--text-mid); max-width: 160px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table tr:hover td { background: rgba(0,48,87,0.02); }
+.admin-actions {
+  padding: 16px 20px; display: flex; gap: 10px; flex-wrap: wrap;
+  border-top: 1px solid rgba(0,48,87,0.07); background: rgba(0,48,87,0.02);
+}
+.no-submissions { padding: 32px; text-align: center; color: var(--mid-gray); font-size: 0.88rem; }
+@media (max-width: 640px) {
+  .drag-layout { grid-template-columns: 1fr; }
+  .options-grid.two-col, .options-grid.three-col { grid-template-columns: 1fr; }
+  .scale-t { display: none; }
+  .scale-row { gap: 4px; }
+  .btn-row { flex-direction: column; align-items: center; }
+}
+</style>
+</head>
+<body>
+
+<div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+
+<div class="header">
+  <div class="header-bg-pattern"></div>
+  <div class="header-glow"></div>
+  <div class="header-inner">
+    <div class="gt-badge">
+      <div class="gt-badge-dot"></div>
+      <span>Georgia Institute of Technology</span>
+    </div>
+    <div class="header-sub">Conference Services</div>
+    <h1>Intern Lodging Program<br><em>Roommate Selection</em></h1>
+    <p>Answer a few questions so we can carefully match you with interns who share your living preferences and daily schedule.</p>
+    <div class="steps-row" id="stepsRow"></div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- SECTION 1: Information -->
+  <div class="section active" id="sec1">
+    <div class="section-eyebrow">Step 1 of 4</div>
+    <div class="section-title">Your Information</div>
+    <div class="section-desc">Let's start with a few basics so we can identify your submission.</div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">1</span>Full Name <span class="req">*</span></div>
+      <input type="text" class="text-input" id="name" placeholder="First and last name">
+    </div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">2</span>Email Address <span class="req">*</span></div>
+      <input type="email" class="text-input" id="email" placeholder="your@email.com">
+    </div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">3</span>Which type of housing are you applying for? <span class="req">*</span></div>
+      <div class="options-grid three-col">
+        <div class="opt"><input type="radio" name="housing" id="h1" value="Female Housing"><label for="h1"><span class="opt-radio"></span>Female Housing</label></div>
+        <div class="opt"><input type="radio" name="housing" id="h2" value="Male Housing"><label for="h2"><span class="opt-radio"></span>Male Housing</label></div>
+        <div class="opt"><input type="radio" name="housing" id="h3" value="Gender Inclusive"><label for="h3"><span class="opt-radio"></span>Gender Inclusive</label></div>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <span></span>
+      <button class="btn btn-primary" onclick="nextSection(1)">Continue</button>
+    </div>
+  </div>
+
+  <!-- SECTION 2: Priorities -->
+  <div class="section" id="sec2">
+    <div class="section-eyebrow">Step 2 of 4</div>
+    <div class="section-title">Your Living Priorities</div>
+    <div class="section-desc">Drag each habit to reflect how much it describes and matters to you.</div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">1</span>Arrange these habits by how closely they describe your lifestyle</div>
+      <div class="drag-intro">Drag items from the center into "This defines me" if they strongly apply, or "Not really me" if they do not. Items left in the center will be noted as neutral.</div>
+      <div class="drag-layout">
+        <div class="drag-col col-top" id="dragTop">
+          <div class="drag-col-head">This defines me</div>
+        </div>
+        <div class="drag-col col-pool" id="dragPool">
+          <div class="drag-col-head">Habits to sort</div>
+          <div class="drag-item" draggable="true">Go to bed early</div>
+          <div class="drag-item" draggable="true">Go to bed late</div>
+          <div class="drag-item" draggable="true">Wake up early</div>
+          <div class="drag-item" draggable="true">Wake up late</div>
+          <div class="drag-item" draggable="true">Quiet while sleeping</div>
+          <div class="drag-item" draggable="true">Clean shared spaces regularly</div>
+          <div class="drag-item" draggable="true">Use common spaces for socializing</div>
+          <div class="drag-item" draggable="true">Use apartment for solo work or study</div>
+          <div class="drag-item" draggable="true">Comfortable with overnight guests</div>
+        </div>
+        <div class="drag-col col-bottom" id="dragBottom">
+          <div class="drag-col-head">Not really me</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn btn-secondary" onclick="prevSection(2)">Back</button>
+      <span class="page-ind">2 of 4</span>
+      <button class="btn btn-primary" onclick="nextSection(2)">Continue</button>
+    </div>
+  </div>
+
+  <!-- SECTION 3: Living Habits -->
+  <div class="section" id="sec3">
+    <div class="section-eyebrow">Step 3 of 4</div>
+    <div class="section-title">Daily Living Habits</div>
+    <div class="section-desc">Your answers help us identify interns with compatible routines and expectations.</div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">1</span>When do you usually go to bed? <span class="req">*</span></div>
+      <div class="options-grid two-col">
+        <div class="opt"><input type="radio" name="bedtime" id="bt1" value="By 10PM"><label for="bt1"><span class="opt-radio"></span>By 10PM</label></div>
+        <div class="opt"><input type="radio" name="bedtime" id="bt2" value="10PM to 12AM"><label for="bt2"><span class="opt-radio"></span>10PM to 12AM</label></div>
+        <div class="opt"><input type="radio" name="bedtime" id="bt3" value="After 12AM"><label for="bt3"><span class="opt-radio"></span>After 12AM</label></div>
+        <div class="opt"><input type="radio" name="bedtime" id="bt4" value="Varies day to day"><label for="bt4"><span class="opt-radio"></span>Varies day to day</label></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">2</span>When do you usually wake up? <span class="req">*</span></div>
+      <div class="options-grid two-col">
+        <div class="opt"><input type="radio" name="wakeup" id="wu1" value="By 7AM"><label for="wu1"><span class="opt-radio"></span>By 7AM</label></div>
+        <div class="opt"><input type="radio" name="wakeup" id="wu2" value="7AM to 8AM"><label for="wu2"><span class="opt-radio"></span>7AM to 8AM</label></div>
+        <div class="opt"><input type="radio" name="wakeup" id="wu3" value="After 8AM"><label for="wu3"><span class="opt-radio"></span>After 8AM</label></div>
+        <div class="opt"><input type="radio" name="wakeup" id="wu4" value="Varies day to day"><label for="wu4"><span class="opt-radio"></span>Varies day to day</label></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">3</span>How bothered are you by noise while sleeping or resting? <span class="req">*</span></div>
+      <div class="scale-row">
+        <div class="scale-opt"><input type="radio" name="noise" id="n1" value="1"><label for="n1"><span class="scale-n">1</span><span class="scale-t">Not bothered</span></label></div>
+        <div class="scale-opt"><input type="radio" name="noise" id="n2" value="2"><label for="n2"><span class="scale-n">2</span><span class="scale-t">Slightly</span></label></div>
+        <div class="scale-opt"><input type="radio" name="noise" id="n3" value="3"><label for="n3"><span class="scale-n">3</span><span class="scale-t">Moderately</span></label></div>
+        <div class="scale-opt"><input type="radio" name="noise" id="n4" value="4"><label for="n4"><span class="scale-n">4</span><span class="scale-t">Very</span></label></div>
+        <div class="scale-opt"><input type="radio" name="noise" id="n5" value="5"><label for="n5"><span class="scale-n">5</span><span class="scale-t">Extremely</span></label></div>
+      </div>
+      <div class="scale-ends"><span>Not bothered at all</span><span>Extremely bothered</span></div>
+    </div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">4</span>Which best describes your cleanliness expectations for shared spaces? <span class="req">*</span></div>
+      <div class="options-grid">
+        <div class="opt"><input type="radio" name="clean" id="cl1" value="1"><label for="cl1"><span class="opt-radio"></span>Relaxed — clean as needed</label></div>
+        <div class="opt"><input type="radio" name="clean" id="cl2" value="2"><label for="cl2"><span class="opt-radio"></span>Moderate — clean about once a week</label></div>
+        <div class="opt"><input type="radio" name="clean" id="cl3" value="3"><label for="cl3"><span class="opt-radio"></span>Clean — multiple times per week</label></div>
+        <div class="opt"><input type="radio" name="clean" id="cl4" value="4"><label for="cl4"><span class="opt-radio"></span>Extremely clean — daily cleaning expected</label></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">5</span>How do you primarily use your living space? <span class="req">*</span></div>
+      <div class="options-grid">
+        <div class="opt"><input type="radio" name="apt" id="ap1" value="1"><label for="ap1"><span class="opt-radio"></span>A place to relax and/or work alone</label></div>
+        <div class="opt"><input type="radio" name="apt" id="ap2" value="3"><label for="ap2"><span class="opt-radio"></span>A social space</label></div>
+        <div class="opt"><input type="radio" name="apt" id="ap3" value="2"><label for="ap3"><span class="opt-radio"></span>A mix of relaxing, working, and socializing throughout the week</label></div>
+        <div class="opt"><input type="radio" name="apt" id="ap4" value="2"><label for="ap4"><span class="opt-radio"></span>Work-focused during the week, more social on weekends</label></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">6</span>How often do you expect to have guests visit? <span class="req">*</span></div>
+      <div class="options-grid">
+        <div class="opt"><input type="radio" name="guests" id="gf1" value="1"><label for="gf1"><span class="opt-radio"></span>Rarely — 0 to 1 per month</label></div>
+        <div class="opt"><input type="radio" name="guests" id="gf2" value="2"><label for="gf2"><span class="opt-radio"></span>Occasionally — 2 to 3 per month</label></div>
+        <div class="opt"><input type="radio" name="guests" id="gf3" value="3"><label for="gf3"><span class="opt-radio"></span>Weekly — about once per week</label></div>
+        <div class="opt"><input type="radio" name="guests" id="gf4" value="4"><label for="gf4"><span class="opt-radio"></span>Several times per week — 2 to 4 times</label></div>
+        <div class="opt"><input type="radio" name="guests" id="gf5" value="5"><label for="gf5"><span class="opt-radio"></span>Very frequently — daily or more</label></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">7</span>How comfortable are you with overnight guests? <span class="req">*</span></div>
+      <div class="options-grid two-col">
+        <div class="opt"><input type="radio" name="overnight" id="og1" value="1"><label for="og1"><span class="opt-radio"></span>Not comfortable</label></div>
+        <div class="opt"><input type="radio" name="overnight" id="og2" value="2"><label for="og2"><span class="opt-radio"></span>Comfortable only on rare occasions</label></div>
+        <div class="opt"><input type="radio" name="overnight" id="og3" value="3"><label for="og3"><span class="opt-radio"></span>Comfortable occasionally</label></div>
+        <div class="opt"><input type="radio" name="overnight" id="og4" value="4"><label for="og4"><span class="opt-radio"></span>Very comfortable</label></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">8</span>How important is personal privacy and alone time in a shared living space? <span class="req">*</span></div>
+      <div class="scale-row">
+        <div class="scale-opt"><input type="radio" name="privacy" id="pv1" value="1"><label for="pv1"><span class="scale-n">1</span><span class="scale-t">Not important</span></label></div>
+        <div class="scale-opt"><input type="radio" name="privacy" id="pv2" value="2"><label for="pv2"><span class="scale-n">2</span><span class="scale-t">Slightly</span></label></div>
+        <div class="scale-opt"><input type="radio" name="privacy" id="pv3" value="3"><label for="pv3"><span class="scale-n">3</span><span class="scale-t">Moderately</span></label></div>
+        <div class="scale-opt"><input type="radio" name="privacy" id="pv4" value="4"><label for="pv4"><span class="scale-n">4</span><span class="scale-t">Very</span></label></div>
+        <div class="scale-opt"><input type="radio" name="privacy" id="pv5" value="5"><label for="pv5"><span class="scale-n">5</span><span class="scale-t">Extremely</span></label></div>
+      </div>
+      <div class="scale-ends"><span>Not important</span><span>Extremely important</span></div>
+    </div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">9</span>How flexible are you when living with someone whose habits differ from yours? <span class="req">*</span></div>
+      <div class="scale-row">
+        <div class="scale-opt"><input type="radio" name="flex" id="fl1" value="1"><label for="fl1"><span class="scale-n">1</span><span class="scale-t">Not flexible</span></label></div>
+        <div class="scale-opt"><input type="radio" name="flex" id="fl2" value="2"><label for="fl2"><span class="scale-n">2</span><span class="scale-t">Slightly</span></label></div>
+        <div class="scale-opt"><input type="radio" name="flex" id="fl3" value="3"><label for="fl3"><span class="scale-n">3</span><span class="scale-t">Moderately</span></label></div>
+        <div class="scale-opt"><input type="radio" name="flex" id="fl4" value="4"><label for="fl4"><span class="scale-n">4</span><span class="scale-t">Very</span></label></div>
+        <div class="scale-opt"><input type="radio" name="flex" id="fl5" value="5"><label for="fl5"><span class="scale-n">5</span><span class="scale-t">Extremely</span></label></div>
+      </div>
+      <div class="scale-ends"><span>Not flexible</span><span>Extremely flexible</span></div>
+    </div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">10</span>How comfortable are you talking directly with a roommate if something comes up? <span class="req">*</span></div>
+      <div class="scale-row">
+        <div class="scale-opt"><input type="radio" name="comm" id="cm1" value="1"><label for="cm1"><span class="scale-n">1</span><span class="scale-t">Not comfortable</span></label></div>
+        <div class="scale-opt"><input type="radio" name="comm" id="cm2" value="2"><label for="cm2"><span class="scale-n">2</span><span class="scale-t">Slightly</span></label></div>
+        <div class="scale-opt"><input type="radio" name="comm" id="cm3" value="3"><label for="cm3"><span class="scale-n">3</span><span class="scale-t">Moderately</span></label></div>
+        <div class="scale-opt"><input type="radio" name="comm" id="cm4" value="4"><label for="cm4"><span class="scale-n">4</span><span class="scale-t">Very</span></label></div>
+        <div class="scale-opt"><input type="radio" name="comm" id="cm5" value="5"><label for="cm5"><span class="scale-n">5</span><span class="scale-t">Extremely</span></label></div>
+      </div>
+      <div class="scale-ends"><span>Not comfortable</span><span>Extremely comfortable</span></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">11</span>How do you prefer to handle concerns with a roommate?</div>
+      <div class="options-grid">
+        <div class="opt"><input type="radio" name="conflict" id="co1" value="Talk directly and respectfully"><label for="co1"><span class="opt-radio"></span>Talk directly and respectfully</label></div>
+        <div class="opt"><input type="radio" name="conflict" id="co2" value="Think it through first, then talk"><label for="co2"><span class="opt-radio"></span>Think it through first, then have a conversation</label></div>
+        <div class="opt"><input type="radio" name="conflict" id="co3" value="Prefer mediation or support"><label for="co3"><span class="opt-radio"></span>Prefer mediation or structured support</label></div>
+        <div class="opt"><input type="radio" name="conflict" id="co4" value="Depends on the situation"><label for="co4"><span class="opt-radio"></span>Depends on the situation</label></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">12</span>Do you plan to work or study from the apartment regularly?</div>
+      <div class="options-grid two-col">
+        <div class="opt"><input type="radio" name="wfh" id="wf1" value="Yes, frequently"><label for="wf1"><span class="opt-radio"></span>Yes, frequently</label></div>
+        <div class="opt"><input type="radio" name="wfh" id="wf2" value="Sometimes"><label for="wf2"><span class="opt-radio"></span>Sometimes</label></div>
+        <div class="opt"><input type="radio" name="wfh" id="wf3" value="Rarely"><label for="wf3"><span class="opt-radio"></span>Rarely</label></div>
+        <div class="opt"><input type="radio" name="wfh" id="wf4" value="No"><label for="wf4"><span class="opt-radio"></span>No</label></div>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn btn-secondary" onclick="prevSection(3)">Back</button>
+      <span class="page-ind">3 of 4</span>
+      <button class="btn btn-primary" onclick="nextSection(3)">Continue</button>
+    </div>
+  </div>
+
+  <!-- SECTION 4: Final -->
+  <div class="section" id="sec4">
+    <div class="section-eyebrow">Step 4 of 4</div>
+    <div class="section-title">A Few Final Questions</div>
+    <div class="section-desc">You are almost done. Take a moment to share anything else that would help us place you well.</div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">1</span>How often do you spend time on hobbies or personal activities at home?</div>
+      <div class="options-grid two-col">
+        <div class="opt"><input type="radio" name="hobbies" id="hb1" value="Never or almost never"><label for="hb1"><span class="opt-radio"></span>Never or almost never</label></div>
+        <div class="opt"><input type="radio" name="hobbies" id="hb2" value="Rarely"><label for="hb2"><span class="opt-radio"></span>Rarely</label></div>
+        <div class="opt"><input type="radio" name="hobbies" id="hb3" value="Occasionally"><label for="hb3"><span class="opt-radio"></span>Occasionally</label></div>
+        <div class="opt"><input type="radio" name="hobbies" id="hb4" value="Often"><label for="hb4"><span class="opt-radio"></span>Often</label></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="q-label"><span class="q-num">2</span>Is there anything else you would like our team to know when placing you with roommates?</div>
+      <textarea class="text-input" id="notes" placeholder="Share any preferences, dealbreakers, or details that matter to you..."></textarea>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn btn-secondary" onclick="prevSection(4)">Back</button>
+      <span class="page-ind">4 of 4</span>
+      <button class="btn btn-primary" onclick="submitForm()">Submit Response</button>
+    </div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="success-screen" id="successScreen">
+    <div class="success-mark">&#10003;</div>
+    <h2>Response Submitted</h2>
+    <p>Thank you. Your preferences have been recorded. Conference Services will use your responses to place you with compatible roommates for the Intern Lodging Program.</p>
+
+    <div id="submitNetworkWarning" style="display:none; background:#fff3cd; border:1.5px solid #e0a800; border-radius:8px; padding:12px 18px; margin:0 auto 24px; max-width:440px; font-size:0.84rem; color:#7a5700; line-height:1.5;">
+      ⚠️ Your response was saved locally but could not reach the server. Please contact Conference Services or try again.
+    </div>
+
+    <div class="stat-box">
+      <strong id="submissionCount">0</strong>
+      <span>Submissions This Session</span>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-gold" onclick="downloadExcel()">Download Excel File</button>
+      <button class="btn btn-secondary" onclick="newSubmission()">Submit Another Response</button>
+    </div>
+
+    <div class="admin-toggle">
+      <button onclick="toggleAdmin()">Program Coordinator View</button>
+    </div>
+
+    <div class="admin-panel" id="adminPanel">
+      <div class="admin-head">
+        <h3>All Submissions — This Session</h3>
+        <span id="adminCount">0 Records</span>
+      </div>
+      <div id="adminTableWrap"></div>
+      <div class="admin-actions">
+        <button class="btn btn-primary" onclick="downloadExcel()">Download Excel with Room Assignments</button>
+        <button class="btn btn-secondary" onclick="toggleAdmin()">Close</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentSection = 1;
+const totalSections = 4;
+let allSubmissions = [];
+let draggedItem = null;
+
+// Build step indicators
+function buildSteps() {
+  const row = document.getElementById('stepsRow');
+  for (let i = 1; i <= totalSections; i++) {
+    const node = document.createElement('div');
+    node.className = 'step-node'; node.id = 'stepNode' + i; node.textContent = i;
+    row.appendChild(node);
+    if (i < totalSections) {
+      const line = document.createElement('div');
+      line.className = 'step-line'; line.id = 'stepLine' + i;
+      row.appendChild(line);
+    }
+  }
+  updateProgress();
+}
+
+function updateProgress() {
+  const pct = ((currentSection - 1) / totalSections) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+  for (let i = 1; i <= totalSections; i++) {
+    const n = document.getElementById('stepNode' + i);
+    n.classList.remove('active','done');
+    if (i === currentSection) n.classList.add('active');
+    else if (i < currentSection) n.classList.add('done');
+    if (i < totalSections) {
+      document.getElementById('stepLine' + i).classList.toggle('done', i < currentSection);
+    }
+  }
+}
+
+function showSection(n) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec' + n).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  updateProgress();
+}
+
+function nextSection(from) {
+  if (from === 1 && !validateSec1()) return;
+  if (from === 3 && !validateSec3()) return;
+  currentSection = from + 1;
+  showSection(currentSection);
+}
+
+function prevSection(from) {
+  currentSection = from - 1;
+  showSection(currentSection);
+}
+
+function validateSec1() {
+  if (!document.getElementById('name').value.trim()) { alert('Please enter your name.'); return false; }
+  const email = document.getElementById('email').value.trim();
+  if (!email || !email.includes('@')) { alert('Please enter a valid email address.'); return false; }
+  if (!document.querySelector('input[name="housing"]:checked')) { alert('Please select a housing preference.'); return false; }
+  return true;
+}
+
+function validateSec3() {
+  const req = ['bedtime','wakeup','noise','clean','apt','guests','overnight','privacy','flex','comm'];
+  for (const n of req) {
+    if (!document.querySelector(`input[name="${n}"]:checked`)) {
+      alert('Please answer all required questions before continuing.'); return false;
+    }
+  }
+  return true;
+}
+
+// Drag and Drop
+function initDrag() {
+  document.querySelectorAll('.drag-item').forEach(addDragListeners);
+  document.querySelectorAll('.drag-col').forEach(col => {
+    col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drag-over-active'); });
+    col.addEventListener('dragleave', e => { if (!col.contains(e.relatedTarget)) col.classList.remove('drag-over-active'); });
+    col.addEventListener('drop', e => {
+      e.preventDefault(); col.classList.remove('drag-over-active');
+      if (draggedItem) col.appendChild(draggedItem);
+    });
+  });
+}
+
+function addDragListeners(item) {
+  item.addEventListener('dragstart', e => {
+    draggedItem = item;
+    setTimeout(() => item.classList.add('dragging'), 0);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  item.addEventListener('dragend', () => { item.classList.remove('dragging'); draggedItem = null; });
+}
+
+function getDragData() {
+  const top = Array.from(document.getElementById('dragTop').querySelectorAll('.drag-item')).map(i => i.textContent.trim());
+  const bottom = Array.from(document.getElementById('dragBottom').querySelectorAll('.drag-item')).map(i => i.textContent.trim());
+  return { most: top.join(', ') || 'None', less: bottom.join(', ') || 'None' };
+}
+
+function getVal(name) {
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : '';
+}
+
+function getNum(name) { return parseInt(getVal(name)) || 0; }
+
+// Compatibility algorithm
+function compat(a, b) {
+  const dims = [
+    ['_bed', 4], ['_wake', 4], ['_noise', 4], ['_clean', 4],
+    ['_apt', 4], ['_guests', 4], ['_overnight', 4],
+    ['_privacy', 3], ['_flex', 2], ['_comm', 2]
+  ];
+  const totalW = dims.reduce((s, d) => s + d[1], 0);
+  let score = 0;
+  for (const [k, w] of dims) {
+    const diff = Math.abs((a[k] || 0) - (b[k] || 0));
+    score += w * (1 - diff / 4);
+  }
+  if (a['Housing Type'] === b['Housing Type']) score += 3;
+  return Math.round((score / (totalW + 3)) * 100);
+}
+
+function buildMatrix(people) {
+  return people.map((a, i) => people.map((b, j) => i === j ? 0 : compat(a, b)));
+}
+
+function groupScore(indices, mat) {
+  let t = 0, c = 0;
+  for (let i = 0; i < indices.length; i++)
+    for (let j = i + 1; j < indices.length; j++) { t += mat[indices[i]][indices[j]]; c++; }
+  return c > 0 ? t / c : 0;
+}
+
+function matchGroups(people) {
+  if (people.length === 0) return [];
+  const mat = buildMatrix(people);
+  const used = new Array(people.length).fill(false);
+  const groups = [];
+
+  const avail = () => people.map((_, i) => i).filter(i => !used[i]);
+
+  while (avail().length >= 4) {
+    const pool = avail();
+    let best = null, bestScore = -1;
+    for (const anchor of pool) {
+      const others = pool.filter(i => i !== anchor).sort((a, b) => mat[anchor][b] - mat[anchor][a]).slice(0, 3);
+      const group = [anchor, ...others];
+      const gs = groupScore(group, mat);
+      if (gs > bestScore) { bestScore = gs; best = group; }
+    }
+    best.forEach(i => used[i] = true);
+    groups.push({ members: best.map(i => people[i]), score: Math.round(bestScore) });
+  }
+
+  const leftover = avail().map(i => people[i]);
+  if (leftover.length > 0) groups.push({ members: leftover, score: null, partial: true });
+  return groups;
+}
+
+// ── Power Automate HTTP Trigger URL ─────────────────────────────────────────
+const POWER_AUTOMATE_URL = 'https://default482198bbae7b4b258b7a6d7f32faa0.83.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f9d5ae3547704f1e820a74778c97f316/triggers/manual/paths/invoke?api-version=1';
+// ────────────────────────────────────────────────────────────────────────────
+
+function submitForm() {
+  const drag = getDragData();
+  const row = {
+    'Timestamp': new Date().toLocaleString(),
+    'Name': document.getElementById('name').value.trim(),
+    'Email': document.getElementById('email').value.trim(),
+    'Housing Type': getVal('housing'),
+    'Habits: This Defines Me': drag.most,
+    'Habits: Not Really Me': drag.less,
+    'Bedtime': getVal('bedtime'),
+    'Wake Up': getVal('wakeup'),
+    'Noise Sensitivity (1-5)': getNum('noise'),
+    'Cleanliness (1-4)': getNum('clean'),
+    'Apartment Use (1-3)': getNum('apt'),
+    'Guest Frequency (1-5)': getNum('guests'),
+    'Overnight Guests (1-4)': getNum('overnight'),
+    'Privacy Importance (1-5)': getNum('privacy'),
+    'Flexibility (1-5)': getNum('flex'),
+    'Communication Comfort (1-5)': getNum('comm'),
+    'Conflict Handling': getVal('conflict'),
+    'Work From Home': getVal('wfh'),
+    'Hobbies At Home': getVal('hobbies'),
+    'Additional Notes': document.getElementById('notes').value.trim(),
+    // Internal scoring keys (used locally for Excel download only)
+    _bed: getVal('bedtime') === 'By 10PM' ? 1 : getVal('bedtime') === '10PM to 12AM' ? 2 : getVal('bedtime') === 'After 12AM' ? 3 : 2,
+    _wake: getVal('wakeup') === 'By 7AM' ? 1 : getVal('wakeup') === '7AM to 8AM' ? 2 : getVal('wakeup') === 'After 8AM' ? 3 : 2,
+    _noise: getNum('noise'), _clean: getNum('clean'), _apt: getNum('apt'),
+    _guests: getNum('guests'), _overnight: getNum('overnight'),
+    _privacy: getNum('privacy'), _flex: getNum('flex'), _comm: getNum('comm'),
+  };
+
+  const submitBtn = document.querySelector('#sec4 .btn-primary');
+  const originalBtnText = submitBtn ? submitBtn.textContent : '';
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting…'; }
+
+  // Strip _ keys before sending to Power Automate
+  const payload = {};
+  for (const [k, v] of Object.entries(row)) {
+    if (!k.startsWith('_')) payload[k] = v;
+  }
+
+  fetch(POWER_AUTOMATE_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload),
+  })
+  .then(() => {
+    allSubmissions.push(row);
+    showSuccess(allSubmissions.length);
+  })
+  .catch(err => {
+    console.error('Submission error:', err);
+    allSubmissions.push(row);
+    showSuccess(allSubmissions.length, true);
+  })
+  .finally(() => {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalBtnText; }
+  });
+}
+
+function showSuccess(count, networkWarning = false) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('successScreen').style.display = 'block';
+  document.getElementById('submissionCount').textContent = count;
+  document.getElementById('progressBar').style.width = '100%';
+  const warningEl = document.getElementById('submitNetworkWarning');
+  if (warningEl) warningEl.style.display = networkWarning ? 'block' : 'none';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function downloadExcel() {
+  if (allSubmissions.length === 0) { alert('No submissions to export yet.'); return; }
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: All Responses
+  const display = allSubmissions.map(r => {
+    const o = {};
+    for (const [k, v] of Object.entries(r)) { if (!k.startsWith('_')) o[k] = v; }
+    return o;
+  });
+  const ws1 = XLSX.utils.json_to_sheet(display);
+  ws1['!cols'] = Object.keys(display[0]).map(k => ({ wch: Math.min(Math.max(k.length + 4, 16), 38) }));
+  XLSX.utils.book_append_sheet(wb, ws1, 'All Responses');
+
+  // Sheet 2: Compatibility Matrix
+  const names = allSubmissions.map(s => s['Name'] || 'Unknown');
+  const matAoa = [['', ...names]];
+  for (let i = 0; i < allSubmissions.length; i++) {
+    const row = [names[i]];
+    for (let j = 0; j < allSubmissions.length; j++) {
+      row.push(i === j ? '-' : compat(allSubmissions[i], allSubmissions[j]) + '%');
+    }
+    matAoa.push(row);
+  }
+  const ws2 = XLSX.utils.aoa_to_sheet(matAoa);
+  ws2['!cols'] = [{ wch: 22 }, ...names.map(() => ({ wch: 14 }))];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Compatibility Matrix');
+
+  // Sheet 3: Room Assignments
+  const byHousing = {};
+  allSubmissions.forEach(s => {
+    const h = s['Housing Type'] || 'Unknown';
+    if (!byHousing[h]) byHousing[h] = [];
+    byHousing[h].push(s);
+  });
+
+  const assignRows = [];
+  let num = 1;
+  for (const [housing, people] of Object.entries(byHousing)) {
+    const groups = matchGroups(people);
+    for (const g of groups) {
+      g.members.forEach(m => {
+        assignRows.push({
+          'Assignment': g.partial ? 'Overflow (Partial Group)' : 'Assignment ' + num,
+          'Housing Type': housing,
+          'Name': m['Name'],
+          'Email': m['Email'],
+          'Group Compatibility Score': g.score !== null ? g.score + '%' : 'N/A',
+          'Bedtime': m['Bedtime'],
+          'Wake Up': m['Wake Up'],
+          'Noise Sensitivity': m['Noise Sensitivity (1-5)'],
+          'Cleanliness': m['Cleanliness (1-4)'],
+          'Guest Frequency': m['Guest Frequency (1-5)'],
+          'Flexibility': m['Flexibility (1-5)'],
+        });
+      });
+      assignRows.push({});
+      if (!g.partial) num++;
+    }
+  }
+  const ws3 = XLSX.utils.json_to_sheet(assignRows);
+  ws3['!cols'] = [{wch:26},{wch:18},{wch:24},{wch:30},{wch:26},{wch:16},{wch:16},{wch:20},{wch:14},{wch:18},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'Room Assignments');
+
+  // Sheet 4: Scoring Key
+  const keyAoa = [
+    ['Georgia Tech Conference Services — Intern Lodging Program'],
+    ['Roommate Compatibility Scoring Methodology'],
+    [],
+    ['Score Type', 'Description'],
+    ['Compatibility Score (0-100%)', 'Average pairwise compatibility across all 4 members of an assigned group.'],
+    ['Pairwise Score', 'Calculated for each pair based on how closely their answers align across 10 lifestyle dimensions.'],
+    [],
+    ['Dimension', 'Weight', 'How It Is Scored'],
+    ['Bedtime', 'High (4)', '1=By 10PM, 2=10PM-12AM, 3=After 12AM, 2=Varies. Closer = more compatible.'],
+    ['Wake Up Time', 'High (4)', '1=By 7AM, 2=7-8AM, 3=After 8AM. Closer = more compatible.'],
+    ['Noise Sensitivity', 'High (4)', 'Scale 1-5. Closely matched to prevent sleep conflicts.'],
+    ['Cleanliness Expectations', 'High (4)', 'Scale 1-4. Matched for shared expectations of shared spaces.'],
+    ['Apartment Use (social vs solo)', 'High (4)', 'Scale 1-3. Ensures compatible use of the shared environment.'],
+    ['Guest Frequency', 'High (4)', 'Scale 1-5. Matched to avoid conflict over visitors.'],
+    ['Overnight Guest Comfort', 'High (4)', 'Scale 1-4.'],
+    ['Privacy Importance', 'Medium (3)', 'Scale 1-5.'],
+    ['Flexibility', 'Low (2)', 'Higher flexibility means more tolerance for differences.'],
+    ['Communication Comfort', 'Low (2)', 'Higher communication comfort improves conflict resolution.'],
+    ['Same Housing Type', 'Bonus (+3)', 'A bonus of 3 points is added when both individuals share the same housing type.'],
+    [],
+    ['Assignment Method', 'Greedy best-first algorithm. For each housing type, interns are grouped into sets of 4 that maximize average pairwise compatibility.'],
+    ['Overflow', 'If the total number of submissions for a housing type is not divisible by 4, remaining individuals are flagged as Overflow and require manual review.'],
+  ];
+  const ws4 = XLSX.utils.aoa_to_sheet(keyAoa);
+  ws4['!cols'] = [{ wch: 36 }, { wch: 12 }, { wch: 60 }];
+  XLSX.utils.book_append_sheet(wb, ws4, 'Scoring Key');
+
+  XLSX.writeFile(wb, `GT_InternLodging_RoommateMatching_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function toggleAdmin() {
+  const p = document.getElementById('adminPanel');
+  const open = p.style.display === 'block';
+  if (!open) buildAdminTable();
+  p.style.display = open ? 'none' : 'block';
+}
+
+function buildAdminTable() {
+  document.getElementById('adminCount').textContent = allSubmissions.length + ' Records';
+  const wrap = document.getElementById('adminTableWrap');
+  if (allSubmissions.length === 0) {
+    wrap.innerHTML = '<div class="no-submissions">No submissions recorded in this session.</div>'; return;
+  }
+  const cols = ['Name','Email','Housing Type','Bedtime','Wake Up','Noise Sensitivity (1-5)','Cleanliness (1-4)','Guest Frequency (1-5)','Flexibility (1-5)','Timestamp'];
+  let html = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>';
+  cols.forEach(c => { html += `<th>${c}</th>`; });
+  html += '</tr></thead><tbody>';
+  allSubmissions.forEach(r => {
+    html += '<tr>';
+    cols.forEach(c => { html += `<td title="${r[c]||''}">${r[c]||'—'}</td>`; });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+}
+
+function newSubmission() {
+  document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
+  document.querySelectorAll('input[type="text"], input[type="email"]').forEach(i => i.value = '');
+  document.getElementById('notes').value = '';
+  const pool = document.getElementById('dragPool');
+  ['dragTop','dragBottom'].forEach(id => {
+    document.getElementById(id).querySelectorAll('.drag-item').forEach(item => pool.appendChild(item));
+  });
+  document.getElementById('successScreen').style.display = 'none';
+  document.getElementById('adminPanel').style.display = 'none';
+  currentSection = 1;
+  showSection(1);
+}
+
+buildSteps();
+initDrag();
+</script>
+</body>
+</html>
